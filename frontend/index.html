@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index</title>
+</head>
+<body>
+    <h1>User Information</h1>
+    <p>Username: <span id="displayUsername"></span></p>
+    <p>Password: <span id="displayPassword"></span></p>
+    <p>Hashed Password: <span id="displayHashedPassword"></span></p>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const username = localStorage.getItem('username');
+            const password = localStorage.getItem('password');
+            const hashedPassword = localStorage.getItem('hashedPassword');
+
+            document.getElementById('displayUsername').textContent = username;
+            document.getElementById('displayPassword').textContent = password;
+            document.getElementById('displayHashedPassword').textContent = hashedPassword;
+        });
+    </script>
+</body>
+</html>
