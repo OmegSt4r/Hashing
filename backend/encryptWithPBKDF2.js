@@ -63,11 +63,25 @@ const decryptWithPBKDF2 = (password, encryptedText, ivHex, saltHex) => {
   let decrypted = decipher.update(encryptedText, "hex", "utf8");
   decrypted += decipher.final("utf8");
 
-  console.log("Decrypted text:", decrypted);
-
   return decrypted;
 };
 
 module.exports = {
   encryptWithPBKDF2,
 };
+
+// this function will run only if this file is run directly
+// It will not run if this file is imported as a module
+if (require.main === module) {
+  const password = "mySecretPassword";
+  const plaintext = "my secret message!";
+
+  // Encrypt the plaintext
+  const { encryptedText, iv, salt } = encryptWithPBKDF2(password, plaintext);
+
+  // Decrypt the encrypted text
+  const decryptedText = decryptWithPBKDF2(password, encryptedText, iv, salt);
+
+  console.log("Original text:", plaintext);
+  console.log("Decrypted text:", decryptedText);
+}
