@@ -1,14 +1,35 @@
 const express = require("express");
 const router = express.Router();
 const db = require("./db");
+const encryptWithPBKDF2 = require("encryptWithPBKDF2");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 // Register a new user
 router.post("/register", async (req, res) => {
   try {
-    const { username, password, email } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const { username, password, email, encryption_type } = req.body;
+    let hashedPassword;
+
+    switch (encryption_type) {
+      case "bcrypt":
+        hashedPassword = await bcrypt.hash(password, 10);
+        console.log("You picked bcrypt!");
+        break;
+      case "PBKDF2":
+        // using the password as the key to encrypt the password, lol am i doing this right?
+        hashedPassword = await encryptWithPBKDF2(password, password);
+        console.log("you picked PBKDF2!");
+        break;
+      case "Argon2":
+        //const hashedPassword =
+        //implement Argon2
+        console.log("You picked Argon2!");
+        break;
+      default:
+        console.log("Invalid choice!");
+        break;
+    }
 
     const sql = "INSERT INTO users (username) VALUES (?)";
     db.query(sql, [username], (err, result) => {
@@ -18,7 +39,8 @@ router.post("/register", async (req, res) => {
       }
 
       const userId = result.insertId;
-      const sqlInfo = "INSERT INTO user_info (user_id, u_password, email) VALUES (?, ?, ?)";
+      const sqlInfo =
+        "INSERT INTO user_info (user_id, u_password, email) VALUES (?, ?, ?)";
       db.query(sqlInfo, [userId, hashedPassword, email], (err) => {
         if (err) {
           console.error("Error registering user info:", err);
@@ -38,7 +60,7 @@ router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   const sql = `
-    SELECT u.user_id, u.username, ui.u_password, ui.email
+    SELECT u.user_id, u.username, ui.u_password, ui.email, ui.wallet_balance 
     FROM users u 
     JOIN user_info ui ON u.user_id = ui.user_id 
     WHERE u.username = ?
@@ -64,7 +86,8 @@ router.post("/login", async (req, res) => {
       if (password === storedPassword) {
         // If plain text password matches, hash it and update in database
         const hashedPassword = await bcrypt.hash(password, 10);
-        const updateSQL = "UPDATE user_info SET u_password = ? WHERE user_id = ?";
+        const updateSQL =
+          "UPDATE user_info SET u_password = ? WHERE user_id = ?";
 
         db.query(updateSQL, [hashedPassword, user.user_id], (updateErr) => {
           if (updateErr) {
@@ -75,8 +98,21 @@ router.post("/login", async (req, res) => {
         });
 
         // Continue with login
-        const token = jwt.sign({ id: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: "1h" });
-        return res.json({ message: "Login successful", token, user: { id: user.user_id, username: user.username, email: user.email, wallet_balance: user.wallet_balance } });
+        const token = jwt.sign(
+          { id: user.user_id, username: user.username },
+          process.env.JWT_SECRET,
+          { expiresIn: "1h" }
+        );
+        return res.json({
+          message: "Login successful",
+          token,
+          user: {
+            id: user.user_id,
+            username: user.username,
+            email: user.email,
+            wallet_balance: user.wallet_balance,
+          },
+        });
       } else {
         return res.status(401).json({ error: "Invalid credentials" });
       }
@@ -89,8 +125,21 @@ router.post("/login", async (req, res) => {
     }
 
     // Successful login
-    const token = jwt.sign({ id: user.user_id, username: user.username }, process.env.JWT_SECRET, { expiresIn: "1h" });
-    return res.json({ message: "Login successful", token, user: { id: user.user_id, username: user.username, email: user.email, wallet_balance: user.wallet_balance } });
+    const token = jwt.sign(
+      { id: user.user_id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+    return res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user.user_id,
+        username: user.username,
+        email: user.email,
+        wallet_balance: user.wallet_balance,
+      },
+    });
   });
 });
 
@@ -99,7 +148,7 @@ router.get("/:id", (req, res) => {
   const userId = req.params.id;
 
   const sql = `
-    SELECT u.user_id, u.username, ui.email, 
+    SELECT u.user_id, u.username, ui.email, ui.wallet_balance
     FROM users u
     JOIN user_info ui ON u.user_id = ui.user_id
     WHERE u.user_id = ?
@@ -138,6 +187,5 @@ router.post("/reset-password", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 module.exports = router;
