@@ -38,7 +38,7 @@ router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   const sql = `
-    SELECT u.user_id, u.username, ui.u_password, ui.email, ui.wallet_balance 
+    SELECT u.user_id, u.username, ui.u_password, ui.email
     FROM users u 
     JOIN user_info ui ON u.user_id = ui.user_id 
     WHERE u.username = ?
@@ -99,7 +99,7 @@ router.get("/:id", (req, res) => {
   const userId = req.params.id;
 
   const sql = `
-    SELECT u.user_id, u.username, ui.email, ui.wallet_balance
+    SELECT u.user_id, u.username, ui.email, 
     FROM users u
     JOIN user_info ui ON u.user_id = ui.user_id
     WHERE u.user_id = ?
