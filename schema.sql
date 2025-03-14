@@ -10,3 +10,10 @@ CREATE TABLE user_info (
   p_encryption_type VARCHAR(255) NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
+
+CREATE TABLE security_data (
+  user_id INT,
+  iv VARBINARY(16) NOT NULL,
+  salt VARBINARY(16) NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(user_id)
+);

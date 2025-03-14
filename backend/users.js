@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("./db");
-const encryptWithPBKDF2 = require("encryptWithPBKDF2");
+const pbkdf2 = require("pbkdf2-encryption");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
@@ -10,18 +10,23 @@ router.post("/register", async (req, res) => {
   try {
     const { username, password, email, encryption_type } = req.body;
     let hashedPassword;
+    let iv;
+    let salt;
 
     switch (encryption_type) {
       case "bcrypt":
         hashedPassword = await bcrypt.hash(password, 10);
         console.log("You picked bcrypt!");
         break;
-      case "PBKDF2":
+      case "pbkdf2":
         // using the password as the key to encrypt the password, lol am i doing this right?
-        hashedPassword = await encryptWithPBKDF2(password, password);
+        ({ hashedPassword, iv, salt } = await pbkdf2.encrypt(
+          password,
+          password
+        ));
         console.log("you picked PBKDF2!");
         break;
-      case "Argon2":
+      case "argon2":
         //const hashedPassword =
         //implement Argon2
         console.log("You picked Argon2!");

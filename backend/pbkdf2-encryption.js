@@ -1,8 +1,8 @@
 const crypto = require("crypto");
 
 //password is the key to encrypt the plaintext
-//plaintext is the password to be encrypted
-const encryptWithPBKDF2 = (password, plaintext) => {
+//plaintext is the content to be encrypted
+const encrypt = (password, plaintext) => {
   const salt = crypto.randomBytes(16); // Generate a random salt
   const iterations = 100000; // Number of iterations
   const keyLength = 32; // Desired key length
@@ -17,7 +17,7 @@ const encryptWithPBKDF2 = (password, plaintext) => {
     digest
   );
 
-  console.log("Derived key:", derivedKey.toString("hex"));
+  //console.log("Derived key:", derivedKey.toString("hex"));
 
   // Now use the derived key for encryption (AES-256-CBC example)
   //iv ensures that the same plaintext encrypted with the same key will produce different ciphertexts
@@ -28,8 +28,8 @@ const encryptWithPBKDF2 = (password, plaintext) => {
   let encrypted = cipher.update(plaintext, "utf8", "hex");
   encrypted += cipher.final("hex");
 
-  console.log("Encrypted text:", encrypted);
-  console.log("Initialization vector (IV):", iv.toString("hex"));
+  //console.log("Encrypted text:", encrypted);
+  //console.log("Initialization vector (IV):", iv.toString("hex"));
 
   return {
     encryptedText: encrypted,
@@ -38,7 +38,7 @@ const encryptWithPBKDF2 = (password, plaintext) => {
   };
 };
 
-const decryptWithPBKDF2 = (password, encryptedText, ivHex, saltHex) => {
+const decrypt = (password, encryptedText, ivHex, saltHex) => {
   const salt = Buffer.from(saltHex, "hex"); // Convert salt back to buffer
   const iv = Buffer.from(ivHex, "hex"); // Convert IV back to buffer
   const iterations = 100000; // Number of iterations
@@ -54,7 +54,7 @@ const decryptWithPBKDF2 = (password, encryptedText, ivHex, saltHex) => {
     digest
   );
 
-  console.log("Derived key for decryption:", derivedKey.toString("hex"));
+  //console.log("Derived key for decryption:", derivedKey.toString("hex"));
 
   // Now use the derived key for decryption (AES-256-CBC example)
   const decipher = crypto.createDecipheriv("aes-256-cbc", derivedKey, iv);
@@ -67,7 +67,8 @@ const decryptWithPBKDF2 = (password, encryptedText, ivHex, saltHex) => {
 };
 
 module.exports = {
-  encryptWithPBKDF2,
+  encrypt,
+  decrypt,
 };
 
 // this function will run only if this file is run directly
@@ -76,12 +77,19 @@ if (require.main === module) {
   const password = "mySecretPassword";
   const plaintext = "my secret message!";
 
-  // Encrypt the plaintext
-  const { encryptedText, iv, salt } = encryptWithPBKDF2(password, plaintext);
+  console.log("\x1b[32m\x1b[1m%s\x1b[0m", "\nTime analysis"); // prints in green color
 
-  // Decrypt the encrypted text
-  const decryptedText = decryptWithPBKDF2(password, encryptedText, iv, salt);
+  console.time("encryption"); // starts the timer
+  const { encryptedText, iv, salt } = encrypt(password, plaintext); // Encrypt the plaintext
+  console.timeEnd("encryption"); // prints time to encrypt
 
+  console.time("decryption");
+  const decryptedText = decrypt(password, encryptedText, iv, salt); // Decrypt the encrypted text
+  console.timeEnd("decryption");
+
+  // prints the original text and the decrypted text
+  console.log("\x1b[32m\x1b[1m%s\x1b[0m", "\nEncryption analysis");
   console.log("Original text:", plaintext);
+  console.log("Encrypted text:", encryptedText);
   console.log("Decrypted text:", decryptedText);
 }
