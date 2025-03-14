@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("./db");
-const pbkdf2 = require("pbkdf2-encryption");
+const pbkdf2 = require("./pbkdf2-encryption");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
