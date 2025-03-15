@@ -88,3 +88,8 @@ if (require.main === module) {
   console.log("Encrypted text:", encryptedText);
   console.log("Decrypted text:", decryptedText);
 }
+
+module.exports = {
+  encrypt,
+  decrypt,
+};
