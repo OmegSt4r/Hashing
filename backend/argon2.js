@@ -5,9 +5,9 @@ const hashPassword = async (password) => {
   try {
     const hash = await argon2.hash(password, {
       type: argon2.argon2id, // Recommended variant
-      memoryCost: 2 ** 16,   // 64MB RAM usage
-      timeCost: 3,           // Iterations
-      parallelism: 1,        // Number of threads
+      memoryCost: 2 ** 16, // 64MB RAM usage
+      timeCost: 3, // Iterations
+      parallelism: 1, // Number of threads
     });
     return hash;
   } catch (err) {

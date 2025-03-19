@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("./db");
 const pbkdf2 = require("./pbkdf2-encryption");
 const bcrypt = require("bcrypt");
+const argon2 = require("./argon2");
 const jwt = require("jsonwebtoken");
 
 // Register a new user
@@ -10,8 +11,8 @@ router.post("/register", async (req, res) => {
   try {
     const { username, password, email, encryption_type } = req.body;
     let hashedPassword;
-    let iv;
-    let salt;
+    let iv = null;
+    let salt = null;
 
     switch (encryption_type) {
       case "bcrypt":
@@ -27,8 +28,7 @@ router.post("/register", async (req, res) => {
         console.log("you picked PBKDF2!");
         break;
       case "argon2":
-        //const hashedPassword =
-        //implement Argon2
+        const hashedPassword = argon2.hashPassword(password);
         console.log("You picked Argon2!");
         break;
       default:
@@ -45,14 +45,18 @@ router.post("/register", async (req, res) => {
 
       const userId = result.insertId;
       const sqlInfo =
-        "INSERT INTO user_info (user_id, u_password, email) VALUES (?, ?, ?)";
-      db.query(sqlInfo, [userId, hashedPassword, email], (err) => {
-        if (err) {
-          console.error("Error registering user info:", err);
-          return res.status(500).json({ error: "Database error" });
+        "INSERT INTO user_info (user_id, u_password, email, p_encryption_type) VALUES (?, ?, ?, ?)";
+      db.query(
+        sqlInfo,
+        [userId, hashedPassword, email, encryption_type],
+        (err) => {
+          if (err) {
+            console.error("Error registering user info:", err);
+            return res.status(500).json({ error: "Database error" });
+          }
+          res.status(201).json({ message: "User registered successfully" });
         }
-        res.status(201).json({ message: "User registered successfully" });
-      });
+      );
     });
   } catch (error) {
     console.error("Error during registration:", error);
@@ -82,51 +86,36 @@ router.post("/login", async (req, res) => {
     }
 
     const user = results[0];
+    const encryption_type = user.p_encryption_type;
     const storedPassword = user.u_password;
 
-    // Check if password is stored in plain text (bcrypt hashes start with "$2b$")
-    const isHashed = storedPassword.startsWith("$2b$");
-
-    if (!isHashed) {
-      if (password === storedPassword) {
-        // If plain text password matches, hash it and update in database
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const updateSQL =
-          "UPDATE user_info SET u_password = ? WHERE user_id = ?";
-
-        db.query(updateSQL, [hashedPassword, user.user_id], (updateErr) => {
-          if (updateErr) {
-            console.error("Error updating password:", updateErr);
-          } else {
-            console.log("Password securely hashed for user:", user.username);
-          }
-        });
-
-        // Continue with login
-        const token = jwt.sign(
-          { id: user.user_id, username: user.username },
-          process.env.JWT_SECRET,
-          { expiresIn: "1h" }
+    switch (encryption_type) {
+      case "bcrypt":
+        const isPasswordValidBcrypt = await bcrypt.compare(
+          password,
+          storedPassword
         );
-        return res.json({
-          message: "Login successful",
-          token,
-          user: {
-            id: user.user_id,
-            username: user.username,
-            email: user.email,
-            wallet_balance: user.wallet_balance,
-          },
-        });
-      } else {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-    }
-
-    // If password is already hashed, verify it using bcrypt
-    const isPasswordValid = await bcrypt.compare(password, storedPassword);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid credentials" });
+        if (!isPasswordValidBcrypt) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        break;
+      case "pbkdf2":
+        const isPasswordValidPbkdf2 = await pbkdf2.verify(
+          password,
+          storedPassword,
+          user.iv,
+          user.salt
+        );
+        if (!isPasswordValidPbkdf2) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        break;
+      case "argon2":
+        // Implement Argon2 verification
+        console.log("Argon2 verification not implemented yet");
+        return res.status(500).json({ error: "Server error" });
+      default:
+        return res.status(400).json({ error: "Invalid encryption type" });
     }
 
     // Successful login
@@ -142,7 +131,7 @@ router.post("/login", async (req, res) => {
         id: user.user_id,
         username: user.username,
         email: user.email,
-        wallet_balance: user.wallet_balance,
+        //wallet_balance: user.wallet_balance,
       },
     });
   });

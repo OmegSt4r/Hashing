@@ -66,6 +66,11 @@ const decrypt = (password, encryptedText, ivHex, saltHex) => {
   return decrypted;
 };
 
+const verify = (password, encryptedText, ivHex, saltHex) => {
+  const decryptedText = decrypt(password, encryptedText, ivHex, saltHex);
+  return decryptedText === password;
+};
+
 // this function will run only if this file is run directly
 // It will not run if this file is imported as a module
 if (require.main === module) {
@@ -92,4 +97,5 @@ if (require.main === module) {
 module.exports = {
   encrypt,
   decrypt,
+  verify,
 };
