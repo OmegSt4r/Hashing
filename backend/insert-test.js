@@ -1,6 +1,6 @@
-const mysql = require("mysql2");
+//const mysql = require("mysql2");
 const dotenv = require("dotenv");
-
+const mysql = require("mysql2/promise");
 // Load environment variables from .env file
 dotenv.config();
 
@@ -14,9 +14,15 @@ const dbConfig = {
 };
 
 // Function to insert user data into the database
-function insertUserData(username, password, email, encryptionType, iv, salt) {
-  // Create a connection to the database
-  const connection = mysql.createConnection({
+async function insertUserData(
+  username,
+  password,
+  email,
+  encryptionType,
+  iv,
+  salt
+) {
+  const connection = await mysql.createConnection({
     ...dbConfig,
     authPlugins: {
       sha256_password: () => (data, cb) => {
@@ -25,92 +31,54 @@ function insertUserData(username, password, email, encryptionType, iv, salt) {
     },
   });
 
-  // Connect to the database
-  connection.connect((err) => {
-    if (err) {
-      console.error("Error connecting to the database:", err);
-      return;
-    }
+  try {
+    await connection.connect();
     console.log("Connected to the database");
 
-    // Start a transaction
-    connection.beginTransaction((err) => {
-      if (err) {
-        console.error("Error starting transaction:", err);
-        connection.end();
-        return;
-      }
+    // Start transaction
+    await connection.beginTransaction();
 
-      // Insert a new user into the users table
-      connection.query(
-        "INSERT INTO users (username) VALUES (?)",
-        [username],
-        (err, results) => {
-          if (err) {
-            console.error("Error inserting user:", err);
-            connection.rollback(() => {
-              connection.end();
-            });
-            return;
-          }
+    // Insert user into `users` table
+    const [userResults] = await connection.execute(
+      "INSERT INTO users (username) VALUES (?)",
+      [username]
+    );
+    const userId = userResults.insertId;
 
-          // Retrieve the user_id of the newly inserted user
-          const userId = results.insertId;
+    // Insert user info into `user_info` table
+    await connection.execute(
+      "INSERT INTO user_info (user_id, u_password, email, p_encryption_type) VALUES (?, ?, ?, ?)",
+      [userId, password, email, encryptionType]
+    );
 
-          // Insert the corresponding user information into the user_info table
-          connection.query(
-            "INSERT INTO user_info (user_id, u_password, email, p_encryption_type) VALUES (?, ?, ?, ?)",
-            [userId, password, email, encryptionType],
-            (err) => {
-              if (err) {
-                console.error("Error inserting user info:", err);
-                connection.rollback(() => {
-                  connection.end();
-                });
-                return;
-              }
+    // Insert security data into `security_data` table
+    await connection.execute(
+      "INSERT INTO security_data (user_id, iv, salt) VALUES (?, UNHEX(?), UNHEX(?))",
+      [userId, iv, salt]
+    );
 
-              // Insert the security data into the security_data table
-              connection.query(
-                "INSERT INTO security_data (user_id, iv, salt) VALUES (?, UNHEX(?), UNHEX(?))",
-                [userId, iv, salt],
-                (err) => {
-                  if (err) {
-                    console.error("Error inserting security data:", err);
-                    connection.rollback(() => {
-                      connection.end();
-                    });
-                    return;
-                  }
+    // Commit transaction
+    await connection.commit();
+    console.log("User data inserted successfully");
+  } catch (err) {
+    console.error("Error during transaction:", err);
 
-                  // Commit the transaction
-                  connection.commit((err) => {
-                    if (err) {
-                      console.error("Error committing transaction:", err);
-                      connection.rollback(() => {
-                        connection.end();
-                      });
-                      return;
-                    }
-
-                    console.log("User data inserted successfully");
-                    connection.end();
-                  });
-                }
-              );
-            }
-          );
-        }
-      );
-    });
-  });
+    // Rollback transaction on error
+    if (connection && connection.rollback) {
+      await connection.rollback();
+    }
+  } finally {
+    if (connection && connection.end) {
+      await connection.end();
+    }
+  }
 }
 
 // Example usage
 insertUserData(
-  "example_username",
-  "example_password",
-  "example_email@example.com",
+  "example_username2",
+  "example_password2",
+  "example_email@example.com2",
   "AES",
   "00112233445566778899AABBCCDDEEFF",
   "00112233445566778899AABBCCDDEEFF"
