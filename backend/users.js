@@ -143,10 +143,7 @@ router.post("/login", async (req, res) => {
 
     switch (encryption_type) {
       case "bcrypt":
-        isPasswordValid = await bycrypt.verifyPassword(
-          password,
-          storedPassword
-        );
+        isPasswordValid = await bycrypt.verifyPassword(password, storedPassword);
         if (!isPasswordValidBcrypt) {
           return res.status(401).json({ error: "Invalid credentials" });
         }
