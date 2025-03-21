@@ -39,80 +39,79 @@ router.post("/register", async (req, res) => {
       console.log("Invalid choice!");
       break;
   }
-  res.status(201).json({ message: "Request data logged successfully" });
-  insertUserData(username, hashedPassword, email, encryption_type, iv, salt);
+
+  try {
+    const msg = await insertUserData(
+      username,
+      hashedPassword,
+      email,
+      encryption_type,
+      iv,
+      salt
+    );
+    console.log(msg);
+    res.status(201).json(msg);
+  } catch (error) {
+    console.error("Error inserting user data:", error);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
-// Function to insert user data into the database
 const insertUserData = (
   username,
-  password,
+  hashedPassword,
   email,
   encryptionType,
   iv,
   salt
 ) => {
-  // Start the transaction
-  db.query("START TRANSACTION", (err) => {
-    if (err) {
-      console.error("Error starting transaction:", err);
-      return;
-    }
+  return new Promise((resolve, reject) => {
+    const sql = "INSERT INTO users (username) VALUES (?)";
+    db.query(sql, [username], (err, result) => {
+      if (err) {
+        console.error("Error inserting into users table:", err);
+        return reject({
+          message: "Error inserting into users table",
+          success: false,
+        });
+      }
 
-    // Insert user into `users` table
-    db.query(
-      "INSERT INTO users (username) VALUES (?)",
-      [username],
-      (err, userResults) => {
-        if (err) {
-          console.error("Error inserting into users table:", err);
-          db.query("ROLLBACK", () => {});
-          return;
-        }
+      const userId = result.insertId;
 
-        const userId = userResults.insertId;
+      const sqlInfo =
+        "INSERT INTO user_info (user_id, u_password, email, p_encryption_type) VALUES (?, ?, ?, ?)";
+      db.query(
+        sqlInfo,
+        [userId, hashedPassword, email, encryptionType],
+        (err) => {
+          if (err) {
+            console.error("Error inserting into user_info table:", err);
+            return reject({
+              message: "Error inserting into user_info table",
+              success: false,
+            });
+          }
 
-        // Insert user info into `user_info` table
-        db.query(
-          "INSERT INTO user_info (user_id, u_password, email, p_encryption_type) VALUES (?, ?, ?, ?)",
-          [userId, password, email, encryptionType],
-          (err) => {
+          const sqlSecurity =
+            "INSERT INTO security_data (user_id, iv, salt) VALUES (?, UNHEX(?), UNHEX(?))";
+          db.query(sqlSecurity, [userId, iv, salt], (err) => {
             if (err) {
-              console.error("Error inserting into user_info table:", err);
-              db.query("ROLLBACK", () => {});
-              return;
+              console.error("Error inserting into security_data table:", err);
+              return reject({
+                message: "Error inserting into security_data table",
+                success: false,
+              });
             }
 
-            // Insert security data into `security_data` table
-            db.query(
-              "INSERT INTO security_data (user_id, iv, salt) VALUES (?, UNHEX(?), UNHEX(?))",
-              [userId, iv, salt],
-              (err) => {
-                if (err) {
-                  console.error(
-                    "Error inserting into security_data table:",
-                    err
-                  );
-                  db.query("ROLLBACK", () => {});
-                  return;
-                }
-
-                // Commit the transaction
-                db.query("COMMIT", (err) => {
-                  if (err) {
-                    console.error("Error committing transaction:", err);
-                    db.query("ROLLBACK", () => {});
-                    return;
-                  }
-
-                  console.log("User data inserted successfully");
-                });
-              }
-            );
-          }
-        );
-      }
-    );
+            console.log("User data inserted successfully");
+            resolve({
+              message: "User data inserted successfully",
+              success: true,
+            });
+          });
+        }
+      );
+    });
   });
 };
 
