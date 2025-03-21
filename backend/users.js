@@ -5,16 +5,6 @@ const pbkdf2 = require("./pbkdf2-encryption");
 const bcrypt = require("bcrypt");
 const argon2 = require("./argon2");
 const jwt = require("jsonwebtoken");
-const mysql = require("mysql2/promise");
-
-// Define your credentials using environment variables
-const dbConfig = {
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT, // Optional if 3306 is the default port
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-};
 
 // Register a new user
 router.post("/register", async (req, res) => {
@@ -54,7 +44,7 @@ router.post("/register", async (req, res) => {
 });
 
 // Function to insert user data into the database
-const insertUserData = async (
+const insertUserData = (
   username,
   password,
   email,
@@ -62,56 +52,68 @@ const insertUserData = async (
   iv,
   salt
 ) => {
-  const connection = await mysql.createConnection({
-    ...dbConfig,
-    authPlugins: {
-      sha256_password: () => (data, cb) => {
-        cb(null, Buffer.from(dbConfig.password));
-      },
-    },
-  });
-
-  try {
-    await connection.connect();
-    console.log("Connected to the database");
-
-    // Start transaction
-    await connection.beginTransaction();
+  // Start the transaction
+  db.query("START TRANSACTION", (err) => {
+    if (err) {
+      console.error("Error starting transaction:", err);
+      return;
+    }
 
     // Insert user into `users` table
-    const [userResults] = await connection.execute(
+    db.query(
       "INSERT INTO users (username) VALUES (?)",
-      [username]
+      [username],
+      (err, userResults) => {
+        if (err) {
+          console.error("Error inserting into users table:", err);
+          db.query("ROLLBACK", () => {});
+          return;
+        }
+
+        const userId = userResults.insertId;
+
+        // Insert user info into `user_info` table
+        db.query(
+          "INSERT INTO user_info (user_id, u_password, email, p_encryption_type) VALUES (?, ?, ?, ?)",
+          [userId, password, email, encryptionType],
+          (err) => {
+            if (err) {
+              console.error("Error inserting into user_info table:", err);
+              db.query("ROLLBACK", () => {});
+              return;
+            }
+
+            // Insert security data into `security_data` table
+            db.query(
+              "INSERT INTO security_data (user_id, iv, salt) VALUES (?, UNHEX(?), UNHEX(?))",
+              [userId, iv, salt],
+              (err) => {
+                if (err) {
+                  console.error(
+                    "Error inserting into security_data table:",
+                    err
+                  );
+                  db.query("ROLLBACK", () => {});
+                  return;
+                }
+
+                // Commit the transaction
+                db.query("COMMIT", (err) => {
+                  if (err) {
+                    console.error("Error committing transaction:", err);
+                    db.query("ROLLBACK", () => {});
+                    return;
+                  }
+
+                  console.log("User data inserted successfully");
+                });
+              }
+            );
+          }
+        );
+      }
     );
-    const userId = userResults.insertId;
-
-    // Insert user info into `user_info` table
-    await connection.execute(
-      "INSERT INTO user_info (user_id, u_password, email, p_encryption_type) VALUES (?, ?, ?, ?)",
-      [userId, password, email, encryptionType]
-    );
-
-    // Insert security data into `security_data` table
-    await connection.execute(
-      "INSERT INTO security_data (user_id, iv, salt) VALUES (?, UNHEX(?), UNHEX(?))",
-      [userId, iv, salt]
-    );
-
-    // Commit transaction
-    await connection.commit();
-    console.log("User data inserted successfully");
-  } catch (err) {
-    console.error("Error during transaction:", err);
-
-    // Rollback transaction on error
-    if (connection && connection.rollback) {
-      await connection.rollback();
-    }
-  } finally {
-    if (connection && connection.end) {
-      await connection.end();
-    }
-  }
+  });
 };
 
 router.post("/register2", async (req, res) => {
