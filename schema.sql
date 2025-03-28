@@ -13,7 +13,6 @@ CREATE TABLE users (
 
   CREATE TABLE security_data (
     user_id INT,
-    iv VARBINARY(16) DEFAULT NULL,
-    salt VARBINARY(16) DEFAULT NULL,
+    salt VARCHAR(255) DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
   );

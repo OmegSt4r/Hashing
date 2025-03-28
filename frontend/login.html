@@ -1,35 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login</title>
-    <link rel="stylesheet" href="login.css">
-</head>
-<body>
+    <link rel="stylesheet" href="login.css" />
+  </head>
+  <body>
     <form id="loginForm">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required><br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required><br>
-        <button type="submit">Login</button>
-        <p>Dont have an account? <a href="signup.html">Sign up here</a></p>
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required /><br />
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required /><br />
+      <button type="submit">Login</button>
+      <p>Dont have an account? <a href="signup.html">Sign up here</a></p>
     </form>
-    
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const hashedPassword = btoa(password); // Simple base64 encoding for demonstration
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+          const username = document.getElementById("username").value;
+          const password = document.getElementById("password").value;
+          const hashedPassword = btoa(password); // Simple base64 encoding for demonstration
 
-            localStorage.setItem('username', username);
-            localStorage.setItem('password', password);
-            localStorage.setItem('hashedPassword', hashedPassword);
+          localStorage.setItem("username", username);
+          localStorage.setItem("password", password);
+          localStorage.setItem("hashedPassword", hashedPassword);
 
-            window.location.href = 'index.html';
+          fetch("http://localhost:5002/users/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username, password }),
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Login failed");
+              }
+              return response.json();
+            })
+            .then((data) => {
+              console.log("Login successful:", data);
+              // Optionally redirect or handle success
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+              alert("Login failed. Please try again.");
+            });
+          //window.location.href = 'index.html';
         });
     </script>
-</body>
+  </body>
 </html>

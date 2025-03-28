@@ -11,7 +11,6 @@ router.post("/register", async (req, res) => {
   console.log(req.body);
   const { username, password, email, encryption_type } = req.body;
   let hashedPassword;
-  let iv = null;
   let salt = null;
 
   switch (encryption_type) {
@@ -21,12 +20,7 @@ router.post("/register", async (req, res) => {
       console.log(password, ": ", hashedPassword);
       break;
     case "pbkdf2":
-      // using the password as the key to encrypt the password, lol am i doing this right?
-      ({
-        encryptedText: hashedPassword,
-        iv: iv,
-        salt: salt,
-      } = pbkdf2.encrypt(password, password));
+      ({ salt: salt, hash: hashedPassword } = pbkdf2.hashPassword(password));
       console.log("you picked PBKDF2!");
       console.log(password, ": ", hashedPassword);
       break;
@@ -37,7 +31,9 @@ router.post("/register", async (req, res) => {
       break;
     default:
       console.log("Invalid choice!");
-      break;
+      return res
+        .status(400)
+        .json({ message: "Invalid encryption type", success: false });
   }
 
   try {
@@ -46,7 +42,6 @@ router.post("/register", async (req, res) => {
       hashedPassword,
       email,
       encryption_type,
-      iv,
       salt
     );
     console.log(msg);
@@ -62,7 +57,6 @@ const insertUserData = (
   hashedPassword,
   email,
   encryptionType,
-  iv,
   salt
 ) => {
   return new Promise((resolve, reject) => {
@@ -93,8 +87,8 @@ const insertUserData = (
           }
 
           const sqlSecurity =
-            "INSERT INTO security_data (user_id, iv, salt) VALUES (?, UNHEX(?), UNHEX(?))";
-          db.query(sqlSecurity, [userId, iv, salt], (err) => {
+            "INSERT INTO security_data (user_id, salt) VALUES (?, ?)";
+          db.query(sqlSecurity, [userId, salt], (err) => {
             if (err) {
               console.error("Error inserting into security_data table:", err);
               return reject({
@@ -117,10 +111,11 @@ const insertUserData = (
 
 // User login
 router.post("/login", async (req, res) => {
+  console.log("Attempting to Login");
   const { username, password } = req.body;
 
   const sql = `
-    SELECT u.user_id, u.username, ui.u_password, ui.email, ui.p_encryption_type, sd.iv, sd.salt
+    SELECT u.user_id, u.username, ui.u_password, ui.email, ui.p_encryption_type, sd.salt
     FROM users u
     JOIN user_info ui ON u.user_id = ui.user_id
     LEFT JOIN security_data sd ON u.user_id = sd.user_id
@@ -138,31 +133,40 @@ router.post("/login", async (req, res) => {
     }
 
     const user = results[0];
+    console.log(user);
     const encryption_type = user.p_encryption_type;
     const storedPassword = user.u_password;
+    const storedSalt = user.salt;
 
     switch (encryption_type) {
       case "bcrypt":
-        isPasswordValid = await bycrypt.verifyPassword(password, storedPassword);
+        const isPasswordValidBcrypt = await bycrypt.verifyPassword(
+          password,
+          storedPassword
+        );
         if (!isPasswordValidBcrypt) {
           return res.status(401).json({ error: "Invalid credentials" });
         }
         break;
       case "pbkdf2":
         const isPasswordValidPbkdf2 = await pbkdf2.verify(
-          password,
+          storedSalt,
           storedPassword,
-          user.iv,
-          user.salt
+          password
         );
         if (!isPasswordValidPbkdf2) {
           return res.status(401).json({ error: "Invalid credentials" });
         }
         break;
       case "argon2":
-        // Implement Argon2 verification
-        console.log("Argon2 verification not implemented yet");
-        return res.status(500).json({ error: "Server error" });
+        const isPasswordValidArgon2 = await argon2.verifyPassword(
+          password,
+          storedPassword
+        );
+        if (!isPasswordValidArgon2) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        break;
       default:
         return res.status(400).json({ error: "Invalid encryption type" });
     }
@@ -173,6 +177,8 @@ router.post("/login", async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+
+    console.log("Login Successful");
     return res.json({
       message: "Login successful",
       token,
@@ -181,6 +187,7 @@ router.post("/login", async (req, res) => {
         username: user.username,
         email: user.email,
       },
+      success: true,
     });
   });
 });
