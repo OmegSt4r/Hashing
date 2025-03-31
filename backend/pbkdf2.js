@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const iterations = 96000; // Number of iterations
 
 const hashPassword = (plaintext) => {
-  const salt = crypto.randomBytes(16).toString("hex"); // Generate a random salt
+  const salt = crypto.randomBytes(16); // Generate a random salt
   const keyLength = 64; // Desired key length
   const digest = "sha512"; // Hash function to use
 
@@ -42,7 +42,7 @@ function analysis(plaintext) {
     plaintext.padEnd(15, " ") + // Adjust padding as needed
     (hashingTime.toString() + "ms").padEnd(15, " ") +
     (verifyTime.toString() + "ms").padEnd(15, " ") +
-    `sha512:${iterations}:${salt}:${hash}`.padEnd(60, " ")
+    `sha512:${iterations}:${salt.toString("base64")}:${hash}`.padEnd(60, " ")
   );
 }
 
@@ -67,7 +67,7 @@ if (require.main === module) {
     "b!gsecr3t",
   ];
   console.log(
-    "\x1b[32m\x1b[1m%s\x1b[0m",
+    "\x1b[32m\x1b[1m%s\x1b[0m", //green
     "Plaintext".padEnd(15, " ") +
       "Hashing Time".padEnd(15, " ") +
       "Verify Time".padEnd(15, " ") +
