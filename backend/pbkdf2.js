@@ -29,30 +29,53 @@ const verify = (salt, hash, plaintext) => {
   return derivedHash === hash;
 };
 
+function analysis(plaintext) {
+  const startHashing = Date.now(); // Record the start time
+  const { salt, hash } = hashPassword(plaintext); // Hash the plaintext
+  const hashingTime = Date.now() - startHashing; // Calculate the elapsed time
+
+  const startVerifying = Date.now(); // Record the start time
+  const isCorrect = verify(salt, hash, plaintext);
+  const verifyTime = Date.now() - startVerifying; // Calculate the elapsed time
+
+  return (
+    plaintext.padEnd(15, " ") + // Adjust padding as needed
+    (hashingTime.toString() + "ms").padEnd(15, " ") +
+    (verifyTime.toString() + "ms").padEnd(15, " ") +
+    `sha512:${iterations}:${salt}:${hash}`.padEnd(60, " ")
+  );
+}
+
 // this function will run only if this file is run directly
 // It will not run if this file is imported as a module
 if (require.main === module) {
-  const plaintext = "examplePassword123";
-
-  console.log("\x1b[32m\x1b[1m%s\x1b[0m", "\nTime analysis"); // prints in green color
-
-  console.time("hashing"); // starts the timer
-  const { salt, hash } = hashPassword(plaintext); // Encrypt the plaintext
-  console.timeEnd("hashing"); // prints time to encrypt
-
-  console.time("verifying");
-  const isCorrect = verify(salt, hash, plaintext); // Decrypt the encrypted text
-  console.timeEnd("verifying");
-
-  // prints the original text and the decrypted text
-  console.log("\x1b[32m\x1b[1m%s\x1b[0m", "\nHashing analysis");
-  console.log("Original text:", plaintext);
-  console.log("Hashed text:", hash);
-  console.log("Is Password Correct: ", isCorrect);
-  //console.log("Decrypted text:", decryptedText);
-
-  console.log("\x1b[32m\x1b[1m%s\x1b[0m", "\nFor Hash Cat");
-  console.log(`sha512:${iterations}:${salt}:${hash}`);
+  const passwords = [
+    "abc", //small
+    "A12",
+    "Abc",
+    "whz",
+    "22?",
+    "PaRty", //medium
+    "C4r3",
+    "taco",
+    "Secret",
+    "Aa23$?",
+    "BigS3cret", //big
+    "Bigsecret",
+    "bigSecret",
+    "bigsecret",
+    "b!gsecr3t",
+  ];
+  console.log(
+    "\x1b[32m\x1b[1m%s\x1b[0m",
+    "Plaintext".padEnd(15, " ") +
+      "Hashing Time".padEnd(15, " ") +
+      "Verify Time".padEnd(15, " ") +
+      "Hash Cat Format".padEnd(60, " ")
+  );
+  for (password of passwords) {
+    console.log(analysis(password));
+  }
 }
 
 module.exports = {
