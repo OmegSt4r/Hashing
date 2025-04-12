@@ -17,6 +17,23 @@ const hashPassword = (plaintext) => {
   };
 };
 
+// A second hashPassword function that works with the current datbase implementation
+const hashPassword2 = (plaintext) => {
+  const salt = crypto.randomBytes(16).toString('hex'); // Generate a random salt
+  const keyLength = 64; // Desired key length
+  const digest = "sha512"; // Hash function to use
+
+  // Derive a hash using PBKDF2
+  const hash = crypto
+    .pbkdf2Sync(plaintext, salt, iterations, keyLength, digest)
+    .toString("base64");
+
+  return {
+    salt,
+    hash,
+  };
+};
+
 const verify = (salt, hash, plaintext) => {
   const keyLength = 64; // Desired key length
   const digest = "sha512"; // Hash function to use
@@ -79,6 +96,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  hashPassword,
+  hashPassword2,
   verify,
 };

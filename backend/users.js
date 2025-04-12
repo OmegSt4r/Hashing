@@ -4,7 +4,8 @@ const db = require("./db");
 const pbkdf2 = require("./pbkdf2");
 const bycrypt = require("./bycrypt");
 const argon2 = require("./argon2");
-const jwt = require("jsonwebtoken");
+//const jwt = require("jsonwebtoken");
+const { hash } = require("crypto");
 
 // Register a new user
 router.post("/register", async (req, res) => {
@@ -20,7 +21,7 @@ router.post("/register", async (req, res) => {
       console.log(password, ": ", hashedPassword);
       break;
     case "pbkdf2":
-      ({ salt: salt, hash: hashedPassword } = pbkdf2.hashPassword(password));
+      ({ salt: salt, hash: hashedPassword } = pbkdf2.hashPassword2(password));
       console.log("you picked PBKDF2!");
       console.log(password, ": ", hashedPassword);
       break;
@@ -172,20 +173,23 @@ router.post("/login", async (req, res) => {
     }
 
     // Successful login
+    /*
     const token = jwt.sign(
       { id: user.user_id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-
+    */
     console.log("Login Successful");
     return res.json({
       message: "Login successful",
-      token,
+      //token,
       user: {
         id: user.user_id,
         username: user.username,
         email: user.email,
+        hashedPassword: storedPassword,
+        encryptionType: encryption_type,
       },
       success: true,
     });

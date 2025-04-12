@@ -4,22 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Index</title>
+    <link rel="stylesheet" href="index.css">
 </head>
 <body>
     <h1>User Information</h1>
     <p>Username: <span id="displayUsername"></span></p>
     <p>Password: <span id="displayPassword"></span></p>
     <p>Hashed Password: <span id="displayHashedPassword"></span></p>
+    <p>Hash Type: <span id="displayHashType"></span></p>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const username = localStorage.getItem('username');
             const password = localStorage.getItem('password');
             const hashedPassword = localStorage.getItem('hashedPassword');
+            const hashType = localStorage.getItem('hash-type');
 
             document.getElementById('displayUsername').textContent = username;
             document.getElementById('displayPassword').textContent = password;
             document.getElementById('displayHashedPassword').textContent = hashedPassword;
+            document.getElementById('displayHashType').textContent = hashType;
         });
     </script>
 </body>

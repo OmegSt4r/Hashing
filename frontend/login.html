@@ -23,11 +23,10 @@
           event.preventDefault();
           const username = document.getElementById("username").value;
           const password = document.getElementById("password").value;
-          const hashedPassword = btoa(password); // Simple base64 encoding for demonstration
+          //const hashedPassword = btoa(password); // Simple base64 encoding for demonstration
 
           localStorage.setItem("username", username);
           localStorage.setItem("password", password);
-          localStorage.setItem("hashedPassword", hashedPassword);
 
           fetch("http://localhost:5002/users/login", {
             method: "POST",
@@ -40,17 +39,20 @@
               if (!response.ok) {
                 throw new Error("Login failed");
               }
+              //console.log("response", response);
               return response.json();
             })
             .then((data) => {
-              console.log("Login successful:", data);
               // Optionally redirect or handle success
+              console.log(data.user.encryptionType);
+              localStorage.setItem("hashedPassword", data.user.hashedPassword);
+              localStorage.setItem("hash-type", data.user.encryptionType);
+              window.location.href = 'index.html';
             })
             .catch((error) => {
               console.error("Error:", error);
               alert("Login failed. Please try again.");
             });
-          //window.location.href = 'index.html';
         });
     </script>
   </body>
